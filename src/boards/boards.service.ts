@@ -1,5 +1,5 @@
 import { CreateBoardDto } from './dto/create-board.dto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Board, BoardStatus } from './boards.model';
 import { v1 as uuid } from 'uuid';
 
@@ -26,16 +26,24 @@ export class BoardsService {
   }
 
   getBoardById(id: string): Board {
-    return this.boards.find((board) => board.id === id);
+    const result = this.boards.find((board) => board.id === id);
+
+    if (!result) {
+      throw new NotFoundException(`Can not find post with id ${id}`);
+    }
+
+    return result;
   }
 
   deleteBoard(id: string): void {
-    this.boards = this.boards.filter((board) => board.id !== id);
+    const result = this.getBoardById(id);
+    this.boards = this.boards.filter((board) => board.id !== result.id);
   }
 
   updateBoardStatus(id: string, status: BoardStatus): Board {
     const board = this.getBoardById(id);
     board.status = status;
+
     return board;
   }
 }
