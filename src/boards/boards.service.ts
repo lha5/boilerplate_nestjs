@@ -1,48 +1,51 @@
-import { CreateBoardDto } from './dto/create-board.dto';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Board, BoardStatus } from './boards.model';
-import { v1 as uuid } from 'uuid';
+import { InjectRepository } from '@nestjs/typeorm';
+import { BoardRepository } from './board.repository';
+import { BoardStatus } from './board-status.enum';
+import { CreateBoardDto } from './dto/create-board.dto';
+import { Board } from './board.entity';
 
 @Injectable()
 export class BoardsService {
-  private boards: Board[] = [];  // private를 사용하면 다른 componenets에서 값을 수정하는 것을 막을 수 있음
+  // Inject Repository to Service
+  constructor(
+    @InjectRepository(BoardRepository)
+    private boardRepository: BoardRepository,
+  ) {}
 
-  getAllBoards(): Board[] {
-    return this.boards;
+  createPost(createBoardDto: CreateBoardDto): Promise<Board> {
+    return this.boardRepository.createPost(createBoardDto);
   }
 
-  createBoard(createBoardDto: CreateBoardDto) {
-    const { title, description } = createBoardDto;
-    const board: Board = {
-      id: uuid(),
-      title,
-      description,
-      status: BoardStatus.PUBLIC,
-    };
-
-    this.boards.push(board);
-
-    return board;
+  async getAllPosts(): Promise<Board[]> {
+    const result = await this.boardRepository.find();
+    return result;
   }
 
-  getBoardById(id: string): Board {
-    const result = this.boards.find((board) => board.id === id);
+  async getPostById(id: number): Promise<Board> {
+    const result = await this.boardRepository.findOne(id);
 
     if (!result) {
-      throw new NotFoundException(`Can not find post with id ${id}`);
+      throw new NotFoundException(`Cannot find post with id ${id}`);
     }
 
     return result;
   }
 
-  deleteBoard(id: string): void {
-    const result = this.getBoardById(id);
-    this.boards = this.boards.filter((board) => board.id !== result.id);
+  async deletePost(id: number): Promise<void> {
+    const result = await this.boardRepository.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`Cannot delete post with id ${id}`);
+    }
   }
 
-  updateBoardStatus(id: string, status: BoardStatus): Board {
-    const board = this.getBoardById(id);
-    board.status = status;
-    return board;
+  async updatePostStatus(id: number, status: BoardStatus): Promise<Board> {
+    const post = await this.getPostById(id);
+
+    post.status = status;
+    await this.boardRepository.save(post);
+    
+    return post;
   }
 }
